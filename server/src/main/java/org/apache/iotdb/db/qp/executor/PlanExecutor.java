@@ -304,10 +304,10 @@ public class PlanExecutor implements IPlanExecutor {
         return new EmptyDataSet();
       } else if (queryPlan instanceof GroupByFillPlan) {
         GroupByFillPlan groupByFillPlan = (GroupByFillPlan) queryPlan;
-        return queryRouter.groupByFill(groupByFillPlan, context);
+        queryDataSet = queryRouter.groupByFill(groupByFillPlan, context);
       } else if (queryPlan instanceof GroupByPlan) {
         GroupByPlan groupByPlan = (GroupByPlan) queryPlan;
-        return queryRouter.groupBy(groupByPlan, context);
+        queryDataSet = queryRouter.groupBy(groupByPlan, context);
       } else if (queryPlan instanceof AggregationPlan) {
         AggregationPlan aggregationPlan = (AggregationPlan) queryPlan;
         queryDataSet = queryRouter.aggregate(aggregationPlan, context);
@@ -726,6 +726,10 @@ public class PlanExecutor implements IPlanExecutor {
       return;
     }
     TsFileResource tsFileResource = new TsFileResource(file);
+    long fileVersion =
+        Long.parseLong(
+            tsFileResource.getFile().getName().split(IoTDBConstant.TSFILE_NAME_SEPARATOR)[1]);
+    tsFileResource.setHistoricalVersions(Collections.singleton(fileVersion));
     tsFileResource.setClosed(true);
     try {
       // check file
@@ -916,6 +920,7 @@ public class PlanExecutor implements IPlanExecutor {
 
       insertPlan.setMeasurements(measurementList);
       insertPlan.setSchemasAndTransferType(schemas);
+      insertPlan.setDeviceMNode(node);
       StorageEngine.getInstance().insert(insertPlan);
       if (insertPlan.getFailedMeasurements() != null) {
         throw new StorageEngineException(
@@ -1055,6 +1060,7 @@ public class PlanExecutor implements IPlanExecutor {
         measurementList[i] = measurementNode.getName();
       }
       insertTabletPlan.setSchemas(schemas);
+      insertTabletPlan.setDeviceMNode(node);
       return StorageEngine.getInstance().insertTablet(insertTabletPlan);
     } catch (StorageEngineException | MetadataException e) {
       throw new QueryProcessException(e);

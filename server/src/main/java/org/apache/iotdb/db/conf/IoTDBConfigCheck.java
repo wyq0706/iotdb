@@ -144,7 +144,8 @@ public class IoTDBConfigCheck {
   public void checkConfig() throws IOException {
     propertiesFile = SystemFileFactory.INSTANCE
             .getFile(IoTDBConfigCheck.SCHEMA_DIR + File.separator + PROPERTIES_FILE_NAME);
-    tmpPropertiesFile = new File(propertiesFile.getAbsoluteFile() + ".tmp");
+    tmpPropertiesFile = SystemFileFactory.INSTANCE
+        .getFile(IoTDBConfigCheck.SCHEMA_DIR + File.separator + PROPERTIES_FILE_NAME + ".tmp");
 
     // system init first time, no need to check, write system.properties and return
     if (!propertiesFile.exists() && !tmpPropertiesFile.exists()) {
@@ -171,21 +172,34 @@ public class IoTDBConfigCheck {
       return;
     } else if (propertiesFile.exists() && tmpPropertiesFile.exists()) {
       // both files exist, remove tmp file
-      FileUtils.forceDeleteOnExit(tmpPropertiesFile);
+      FileUtils.forceDelete(tmpPropertiesFile);
       logger.info("remove {}", tmpPropertiesFile);
     }
 
     // no tmp file, read properties from system.properties
-    try (FileInputStream inputStream = new FileInputStream(propertiesFile)) {
-      properties.load(new InputStreamReader(inputStream, TSFileConfig.STRING_CHARSET));
-      // need to upgrade from 0.9 to 0.10
-      if (!properties.containsKey(IOTDB_VERSION_STRING)) {
-        checkUnClosedTsFileV1();
-        MLogWriter.upgradeMLog(SCHEMA_DIR, MetadataConstant.METADATA_LOG);
-        upgradePropertiesFile();
-      }
-      checkProperties();
+    try (FileInputStream inputStream = new FileInputStream(propertiesFile);
+        InputStreamReader inputStreamReader = new InputStreamReader(
+            inputStream, TSFileConfig.STRING_CHARSET)) {
+      properties.load(inputStreamReader);
     }
+    // need to upgrade from 0.9 to 0.10
+    if (!properties.containsKey(IOTDB_VERSION_STRING)) {
+      checkUnClosedTsFileV1();
+      MLogWriter.upgradeMLog(SCHEMA_DIR, MetadataConstant.METADATA_LOG);
+      upgradePropertiesFile();
+      // upgrade mlog finished, delete old mlog file
+      File mlogFile = SystemFileFactory.INSTANCE.getFile(SCHEMA_DIR + File.separator
+          + MetadataConstant.METADATA_LOG);
+      File tmpMLogFile = SystemFileFactory.INSTANCE.getFile(mlogFile.getAbsolutePath()
+          + ".tmp");
+      
+      if (!mlogFile.delete()) {
+        throw new IOException("Deleting " + mlogFile + "failed.");
+      }
+      // rename tmpLogFile to mlog
+      FileUtils.moveFile(tmpMLogFile, mlogFile);
+    }
+    checkProperties();
   }
 
   /**
@@ -214,9 +228,9 @@ public class IoTDBConfigCheck {
       if (propertiesFile.exists()) {
         Files.delete(propertiesFile.toPath());
       }
-      // rename system.properties.tmp to system.properties
-      FileUtils.moveFile(tmpPropertiesFile, propertiesFile);
     }
+    // rename system.properties.tmp to system.properties
+    FileUtils.moveFile(tmpPropertiesFile, propertiesFile);
   }
 
 
@@ -245,9 +259,9 @@ public class IoTDBConfigCheck {
       if (propertiesFile.exists()) {
         Files.delete(propertiesFile.toPath());
       }
-      // rename system.properties.tmp to system.properties
-      FileUtils.moveFile(tmpPropertiesFile, propertiesFile);
     }
+    // rename system.properties.tmp to system.properties
+    FileUtils.moveFile(tmpPropertiesFile, propertiesFile);
   }
 
   /**

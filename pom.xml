@@ -28,7 +28,7 @@
     </parent>
     <groupId>org.apache.iotdb</groupId>
     <artifactId>iotdb-parent</artifactId>
-    <version>0.10.0</version>
+    <version>0.10.1</version>
     <packaging>pom</packaging>
     <name>Apache IoTDB (incubating) Project Parent POM</name>
     <description>This is the top level project that builds, packages the tsfile, iotdb engine, jdbc, and integration libs.</description>
@@ -42,7 +42,7 @@
         <connection>scm:git:ssh://git@github.com/apache/incubator-iotdb.git</connection>
         <developerConnection>scm:git:ssh://git@github.com/apache/incubator-iotdb.git</developerConnection>
         <url>ssh://git@github.com:apache/incubator-iotdb.git</url>
-        <tag>release/0.10.0</tag>
+        <tag>release/0.10.1</tag>
     </scm>
     <!-- Only configure the site distribution as the rest is handled by the apache parent -->
     <distributionManagement>
@@ -182,24 +182,9 @@
                 <version>${jackson.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.google.code.findbugs</groupId>
-                <artifactId>jsr305</artifactId>
-                <version>3.0.2</version>
-            </dependency>
-            <dependency>
                 <groupId>com.google.guava</groupId>
                 <artifactId>guava</artifactId>
                 <version>${guava.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.sun.istack</groupId>
-                <artifactId>istack-commons-runtime</artifactId>
-                <version>3.0.8</version>
-            </dependency>
-            <dependency>
-                <groupId>com.sun.xml.fastinfoset</groupId>
-                <artifactId>FastInfoset</artifactId>
-                <version>1.2.16</version>
             </dependency>
             <dependency>
                 <groupId>commons-lang</groupId>
@@ -463,6 +448,13 @@
                 <groupId>org.fusesource.mqtt-client</groupId>
                 <artifactId>mqtt-client</artifactId>
                 <version>1.12</version>
+            </dependency>
+            <!-- many dependencies (hadoop, spark, hive, flink) use findbugs but with different version...-->
+            <dependency>
+                <groupId>com.google.code.findbugs</groupId>
+                <artifactId>jsr305</artifactId>
+                <!-- spark uses the lastest version than hive, flink and hadoop-->
+                <version>3.0.2</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
