@@ -1397,6 +1397,7 @@ public class TSServiceImpl implements TSIService.Iface, ServerContext {
       return RpcUtils
           .getStatus(TSStatusCode.EXECUTE_STATEMENT_ERROR, e.getMessage());
     } finally {
+      System.out.println("call time: " + (System.currentTimeMillis() - t1));
       Measurement.INSTANCE.addOperationLatency(Operation.EXECUTE_RPC_BATCH_INSERT, t1);
     }
   }
