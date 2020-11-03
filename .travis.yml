@@ -106,7 +106,7 @@ matrix:
         - export "HADOOP_HOME=/c/hadoop"
         - export "PATH=/c/hadoop/bin:$PATH"
     - os: linux
-      if: fork = false #only fork=true (i.e., the committer has permission to write the repo)
+      #if: fork = false #only fork=true (i.e., the committer has permission to write the repo)
       name: sonar-analysis
       dist: xenial
       jdk: openjdk8
