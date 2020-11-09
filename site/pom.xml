@@ -188,50 +188,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <!-- download lagecy docs from iotdb repo -->
-            <plugin>
-                <groupId>com.googlecode.maven-download-plugin</groupId>
-                <artifactId>download-maven-plugin</artifactId>
-                <version>1.3.0</version>
-                <executions>
-                    <execution>
-                        <id>get-0.10-docs</id>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>wget</goal>
-                        </goals>
-                        <configuration>
-                            <url>https://github.com/apache/iotdb/archive/rel/0.10.zip</url>
-                            <outputDirectory>${project.build.directory}/download</outputDirectory>
-                            <outputFileName>0.10.x.zip</outputFileName>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>get-0.9-docs</id>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>wget</goal>
-                        </goals>
-                        <configuration>
-                            <url>https://github.com/apache/iotdb/archive/rel/0.9.zip</url>
-                            <outputDirectory>${project.build.directory}/download</outputDirectory>
-                            <outputFileName>0.9.x.zip</outputFileName>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>get-0.8-docs</id>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>wget</goal>
-                        </goals>
-                        <configuration>
-                            <url>https://github.com/apache/iotdb/archive/rel/0.8.zip</url>
-                            <outputDirectory>${project.build.directory}/download</outputDirectory>
-                            <outputFileName>0.8.x.zip</outputFileName>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
             <!-- unpack lagecy docs from the zip files-->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
@@ -425,4 +381,58 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>download-from-github</id>
+            <build>
+                <plugins>
+                    <!-- download lagecy docs from iotdb repo -->
+                    <plugin>
+                        <groupId>com.googlecode.maven-download-plugin</groupId>
+                        <artifactId>download-maven-plugin</artifactId>
+                        <version>1.3.0</version>
+                        <executions>
+                            <execution>
+                                <id>get-0.10-docs</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>wget</goal>
+                                </goals>
+                                <configuration>
+                                    <url>https://github.com/apache/iotdb/archive/rel/0.10.zip</url>
+                                    <outputDirectory>${project.build.directory}/download</outputDirectory>
+                                    <outputFileName>0.10.x.zip</outputFileName>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>get-0.9-docs</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>wget</goal>
+                                </goals>
+                                <configuration>
+                                    <url>https://github.com/apache/iotdb/archive/rel/0.9.zip</url>
+                                    <outputDirectory>${project.build.directory}/download</outputDirectory>
+                                    <outputFileName>0.9.x.zip</outputFileName>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>get-0.8-docs</id>
+                                <phase>generate-sources</phase>
+                                <goals>
+                                    <goal>wget</goal>
+                                </goals>
+                                <configuration>
+                                    <url>https://github.com/apache/iotdb/archive/rel/0.8.zip</url>
+                                    <outputDirectory>${project.build.directory}/download</outputDirectory>
+                                    <outputFileName>0.8.x.zip</outputFileName>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+    </profiles>
 </project>
