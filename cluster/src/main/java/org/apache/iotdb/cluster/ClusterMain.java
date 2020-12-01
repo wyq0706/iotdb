@@ -55,6 +55,8 @@ public class ClusterMain {
   private static final String MODE_START = "-s";
   // join an established cluster
   private static final String MODE_ADD = "-a";
+  // join an established cluster as a learner
+  private static final String MODE_ADD_LEARNER = "-al";
   // send a request to remove a node, more arguments: ip-of-removed-node
   // metaport-of-removed-node
   private static final String MODE_REMOVE = "-r";
@@ -110,7 +112,10 @@ public class ClusterMain {
         metaServer.stop();
         logger.error("Fail to join cluster", e);
       }
-    } else if (MODE_REMOVE.equals(mode)) {
+    } else if (MODE_ADD_LEARNER.equals(mode)){
+      logger.info("test");
+    }
+    else if (MODE_REMOVE.equals(mode)) {
       try {
         doRemoveNode(args);
       } catch (IOException e) {

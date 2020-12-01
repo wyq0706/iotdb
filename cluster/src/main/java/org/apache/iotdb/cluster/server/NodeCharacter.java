@@ -24,5 +24,7 @@ public enum NodeCharacter {
   // this node has known the leader in the group
   FOLLOWER,
   // this node is the leader in the group
-  LEADER
+  LEADER,
+  // no rights to vote
+  Learner
 }
