@@ -85,13 +85,18 @@ public class HeartbeatThread implements Runnable {
             hasHadLeader = true;
             break;
           case FOLLOWER:
+          case LEARNER:
             // check if heartbeat times out
             long heartBeatInterval = System.currentTimeMillis() - localMember
                 .getLastHeartbeatReceivedTime();
             if (heartBeatInterval >= RaftServer.getConnectionTimeoutInMS()) {
               // the leader is considered dead, an election will be started in the next loop
               logger.info("{}: The leader {} timed out", memberName, localMember.getLeader());
-              localMember.setCharacter(NodeCharacter.ELECTOR);
+              if(localMember.getCharacter()!=NodeCharacter.LEARNER) {
+                localMember.setCharacter(NodeCharacter.ELECTOR);
+              }else{
+                logger.info("{}: The member {} is still a learner", memberName, memberName);
+              }
               localMember.setLeader(null);
             } else {
               logger.debug("{}: Heartbeat from leader {} is still valid", memberName,
@@ -271,7 +276,8 @@ public class HeartbeatThread implements Runnable {
       // the number of votes needed to become a leader,
       // quorumNum should be equal to localMember.getAllNodes().size() / 2 + 1,
       // but since it doesn’t need to vote for itself here, it directly decreases 1
-      int quorumNum = localMember.getAllNodes().size() / 2;
+      // [add leaner type] split out those nodes that don't have right to vote
+      int quorumNum = localMember.getAllNodes().size() / 2-localMember.getLearnerNum().get();
       logger.info("{}: Election {} starts, quorum: {}", memberName, nextTerm, quorumNum);
       // set to true when the election has a result (rejected or succeeded)
       AtomicBoolean electionTerminated = new AtomicBoolean(false);

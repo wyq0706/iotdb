@@ -33,6 +33,7 @@ import org.apache.iotdb.cluster.partition.slot.SlotPartitionTable;
 import org.apache.iotdb.cluster.partition.slot.SlotStrategy;
 import org.apache.iotdb.cluster.rpc.thrift.Node;
 import org.apache.iotdb.cluster.server.MetaClusterServer;
+import org.apache.iotdb.cluster.server.NodeCharacter;
 import org.apache.iotdb.cluster.server.Response;
 import org.apache.iotdb.cluster.utils.ClusterUtils;
 import org.apache.iotdb.db.conf.IoTDBDescriptor;
@@ -107,15 +108,22 @@ public class ClusterMain {
         metaServer = new MetaClusterServer();
         preStartCustomize();
         metaServer.start();
-        metaServer.joinCluster();
+        metaServer.joinCluster(NodeCharacter.FOLLOWER);
       } catch (TTransportException | StartupException | QueryProcessException | StartUpCheckFailureException | ConfigInconsistentException e) {
         metaServer.stop();
         logger.error("Fail to join cluster", e);
       }
     } else if (MODE_ADD_LEARNER.equals(mode)){
-      logger.info("test");
-    }
-    else if (MODE_REMOVE.equals(mode)) {
+      try {
+        metaServer = new MetaClusterServer();
+        preStartCustomize();
+        metaServer.start();
+        metaServer.joinCluster(NodeCharacter.LEARNER);
+      } catch (TTransportException | StartupException | QueryProcessException | StartUpCheckFailureException | ConfigInconsistentException e) {
+        metaServer.stop();
+        logger.error("Fail to join cluster", e);
+      }
+    } else if (MODE_REMOVE.equals(mode)) {
       try {
         doRemoveNode(args);
       } catch (IOException e) {

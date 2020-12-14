@@ -132,8 +132,8 @@ public class MetaClusterServer extends RaftServer implements TSMetaService.Async
    *
    * @return whether the node has joined the cluster.
    */
-  public void joinCluster() throws ConfigInconsistentException, StartUpCheckFailureException {
-    member.joinCluster();
+  public void joinCluster(NodeCharacter nodeCharacter) throws ConfigInconsistentException, StartUpCheckFailureException {
+    member.joinCluster(nodeCharacter);
   }
 
   /**

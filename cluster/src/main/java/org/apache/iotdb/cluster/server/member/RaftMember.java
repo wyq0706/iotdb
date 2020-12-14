@@ -135,6 +135,11 @@ public abstract class RaftMember {
    * the nodes that belong to the same raft group as thisNode.
    */
   protected List<Node> allNodes;
+
+  /**
+   * the number of nodes that don't have right to vote.
+   */
+  protected AtomicInteger learnerNum=new AtomicInteger(0);
   ClusterConfig config = ClusterDescriptor.getInstance().getConfig();
   /**
    * the name of the member, to distinguish several members in the logs.
@@ -438,6 +443,11 @@ public abstract class RaftMember {
    */
   public long processElectionRequest(ElectionRequest electionRequest) {
     synchronized (term) {
+      // ADD RAFT LEARNER
+      if(character==NodeCharacter.LEARNER){
+        return Response.RESPONSE_NODE_IS_LEARNER;
+      }
+
       long currentTerm = term.get();
       long response = checkElectorTerm(currentTerm, electionRequest.getTerm(),
           electionRequest.getElector());
@@ -1821,5 +1831,9 @@ public abstract class RaftMember {
 
   enum AppendLogResult {
     OK, TIME_OUT, LEADERSHIP_STALE
+  }
+
+  public AtomicInteger getLearnerNum() {
+    return learnerNum;
   }
 }

@@ -274,6 +274,7 @@ public class MetaGroupMember extends RaftMember {
         new AsyncClientPool(new AsyncMetaHeartbeatClient.FactoryAsync(factory), false),
         new SyncClientPool(new SyncMetaHeartbeatClient.FactorySync(factory)));
     allNodes = new ArrayList<>();
+
     initPeerMap();
 
     dataClientProvider = new DataClientProvider(factory);
@@ -428,6 +429,7 @@ public class MetaGroupMember extends RaftMember {
         logger.debug("Adding a new node {} into {}", newNode, allNodes);
         registerNodeIdentifier(newNode, newNode.getNodeIdentifier());
         allNodes.add(newNode);
+        learnerNum.incrementAndGet();
 
         // update the partition table
         NodeAdditionResult result = partitionTable.addNode(newNode);
@@ -475,7 +477,7 @@ public class MetaGroupMember extends RaftMember {
    *
    * @return true if the node has successfully joined the cluster, false otherwise.
    */
-  public void joinCluster() throws ConfigInconsistentException, StartUpCheckFailureException {
+  public void joinCluster(NodeCharacter nodeCharacter) throws ConfigInconsistentException, StartUpCheckFailureException {
     if (allNodes.size() == 1) {
       logger.error("Seed nodes not provided, cannot join cluster");
       throw new ConfigInconsistentException();
@@ -492,7 +494,7 @@ public class MetaGroupMember extends RaftMember {
       try {
         if (joinCluster(node, startUpStatus)) {
           logger.info("Joined a cluster, starting the heartbeat thread");
-          setCharacter(NodeCharacter.FOLLOWER);
+          setCharacter(nodeCharacter);
           setLastHeartbeatReceivedTime(System.currentTimeMillis());
           threadTaskInit();
           return;
@@ -1009,7 +1011,7 @@ public class MetaGroupMember extends RaftMember {
     }
   }
 
-  private CheckStatusResponse checkStatus(Node seedNode) {
+  private CheckStatusResponse  checkStatus(Node seedNode) {
     if (ClusterDescriptor.getInstance().getConfig().isUseAsyncServer()) {
       AsyncMetaClient client = (AsyncMetaClient) getAsyncClient(seedNode);
       if (client == null) {

@@ -256,7 +256,7 @@ public class DataGroupMember extends RaftMember {
     }
 
     public DataGroupMember create(PartitionGroup partitionGroup, Node thisNode) {
-      return new DataGroupMember(protocolFactory, partitionGroup, thisNode, metaGroupMember);
+      return new DataGroupMember(protocolFactory, partitionGroup,thisNode, metaGroupMember);
     }
   }
 
@@ -308,6 +308,7 @@ public class DataGroupMember extends RaftMember {
         peerMap.putIfAbsent(node, new Peer(logManager.getLastLogIndex()));
         // remove the last node because the group size is fixed to replication number
         Node removedNode = allNodes.remove(allNodes.size() - 1);
+        learnerNum.decrementAndGet();
         peerMap.remove(removedNode);
         // if the local node is the last node and the insertion succeeds, this node should leave
         // the group

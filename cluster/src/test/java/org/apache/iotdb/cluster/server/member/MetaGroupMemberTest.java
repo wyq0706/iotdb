@@ -586,7 +586,7 @@ public class MetaGroupMemberTest extends MemberTest {
     MetaGroupMember newMember = getMetaGroupMember(TestUtils.getNode(10));
     newMember.start();
     try {
-      newMember.joinCluster();
+      newMember.joinCluster(FOLLOWER);
       newMember.setCharacter(ELECTOR);
       while (!LEADER.equals(newMember.getCharacter())) {
         // wait until character changes
@@ -607,7 +607,7 @@ public class MetaGroupMemberTest extends MemberTest {
     dummyResponse.set(Response.RESPONSE_NO_CONNECTION);
     MetaGroupMember newMember = getMetaGroupMember(TestUtils.getNode(10));
     try {
-      newMember.joinCluster();
+      newMember.joinCluster(FOLLOWER);
       fail("The unexpected exception is thrown");
     } catch (Exception e) {
       assertTrue(e instanceof StartUpCheckFailureException);
