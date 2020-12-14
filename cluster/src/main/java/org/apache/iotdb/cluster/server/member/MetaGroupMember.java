@@ -465,10 +465,21 @@ public class MetaGroupMember extends RaftMember {
 
   private void threadTaskInit() {
     heartBeatService.submit(new MetaHeartbeatThread(this));
-    reportThread.scheduleAtFixedRate(() -> logger.info(genNodeReport().toString()),
+    reportThread.scheduleAtFixedRate(this::generateNodeReport,
         REPORT_INTERVAL_SEC, REPORT_INTERVAL_SEC, TimeUnit.SECONDS);
     hardLinkCleanerThread.scheduleAtFixedRate(new HardLinkCleaner(),
         CLEAN_HARDLINK_INTERVAL_SEC, CLEAN_HARDLINK_INTERVAL_SEC, TimeUnit.SECONDS);
+  }
+
+  private void generateNodeReport() {
+    try {
+      if (logger.isInfoEnabled()) {
+        NodeReport report = genNodeReport();
+        logger.info(report.toString());
+      }
+    } catch (Exception e) {
+      logger.error("{} exception occurred when generating node report", name, e);
+    }
   }
 
   /**
@@ -1137,6 +1148,10 @@ public class MetaGroupMember extends RaftMember {
       }
     } else {
       SyncMetaClient client = (SyncMetaClient) getSyncClient(node);
+      if (client == null) {
+        logger.error("No available client for {}", node);
+        return;
+      }
       getSerialToParallelPool().submit(() -> {
         try {
           handler.onComplete(client.appendEntry(request));
@@ -1414,7 +1429,7 @@ public class MetaGroupMember extends RaftMember {
       }
     }
     try {
-      syncLeaderWithConsistencyCheck();
+      syncLeaderWithConsistencyCheck(true);
       List<PartitionGroup> globalGroups = partitionTable.getGlobalGroups();
       logger.debug("Forwarding global data plan {} to {} groups", plan, globalGroups.size());
       return forwardPlan(globalGroups, plan);
@@ -1477,7 +1492,7 @@ public class MetaGroupMember extends RaftMember {
       planGroupMap = router.splitAndRoutePlan(plan);
     } catch (StorageGroupNotSetException e) {
       // synchronize with the leader to see if this node has unpulled storage groups
-      syncLeaderWithConsistencyCheck();
+      syncLeaderWithConsistencyCheck(true);
       try {
         planGroupMap = router.splitAndRoutePlan(plan);
       } catch (MetadataException ex) {
@@ -1516,24 +1531,37 @@ public class MetaGroupMember extends RaftMember {
     if (plan instanceof InsertPlan
         && status.getCode() == TSStatusCode.TIMESERIES_NOT_EXIST.getStatusCode()
         && ClusterDescriptor.getInstance().getConfig().isEnableAutoCreateSchema()) {
-      // try to create timeseries
-      if (((InsertPlan) plan).getFailedMeasurements() != null) {
-        ((InsertPlan) plan).getPlanFromFailed();
+      TSStatus tmpStatus = createTimeseriesForFailedInsertion(planGroupMap, ((InsertPlan) plan));
+      if (tmpStatus != null) {
+        status = tmpStatus;
       }
-      boolean hasCreate;
-      try {
-        hasCreate = ((CMManager) IoTDB.metaManager).createTimeseries((InsertPlan) plan);
-      } catch (IllegalPathException e) {
-        return StatusUtils.getStatus(StatusUtils.EXECUTE_STATEMENT_ERROR, e.getMessage());
-      }
-      if (hasCreate) {
-        status = forwardPlan(planGroupMap, plan);
-      } else {
-        logger.error("{}, Cannot auto create timeseries.", thisNode);
-      }
+    }
+    if (status.getCode() == TSStatusCode.SUCCESS_STATUS.getStatusCode() && status
+        .isSetRedirectNode()) {
+      status.setCode(TSStatusCode.NEED_REDIRECTION.getStatusCode());
     }
     logger.debug("{}: executed {} with answer {}", name, plan, status);
     return status;
+  }
+
+  private TSStatus createTimeseriesForFailedInsertion(
+      Map<PhysicalPlan, PartitionGroup> planGroupMap, InsertPlan plan) {
+    // try to create timeseries
+    if (plan.getFailedMeasurements() != null) {
+      plan.getPlanFromFailed();
+    }
+    boolean hasCreate;
+    try {
+      hasCreate = ((CMManager) IoTDB.metaManager).createTimeseries(plan);
+    } catch (IllegalPathException e) {
+      return StatusUtils.getStatus(StatusUtils.EXECUTE_STATEMENT_ERROR, e.getMessage());
+    }
+    if (hasCreate) {
+      return forwardPlan(planGroupMap, plan);
+    } else {
+      logger.error("{}, Cannot auto create timeseries.", thisNode);
+    }
+    return null;
   }
 
   /**

@@ -29,7 +29,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import javax.activation.UnsupportedDataTypeException;
 import org.apache.iotdb.cluster.client.async.AsyncDataClient;
 import org.apache.iotdb.cluster.client.sync.SyncClientAdaptor;
 import org.apache.iotdb.cluster.client.sync.SyncDataClient;
@@ -88,7 +87,7 @@ public class ClusterLastQueryExecutor extends LastQueryExecutor {
       throws IOException, QueryProcessException {
     // calculate the global last from all data groups
     try {
-      metaGroupMember.syncLeaderWithConsistencyCheck();
+      metaGroupMember.syncLeaderWithConsistencyCheck(false);
     } catch (CheckConsistencyException e) {
       throw new IOException(e);
     }
@@ -175,7 +174,7 @@ public class ClusterLastQueryExecutor extends LastQueryExecutor {
         throws StorageEngineException, QueryProcessException, IOException {
       DataGroupMember localDataMember = metaGroupMember.getLocalDataMember(group.getHeader());
       try {
-        localDataMember.syncLeaderWithConsistencyCheck();
+        localDataMember.syncLeaderWithConsistencyCheck(false);
       } catch (CheckConsistencyException e) {
         throw new QueryProcessException(e.getMessage());
       }
@@ -208,7 +207,7 @@ public class ClusterLastQueryExecutor extends LastQueryExecutor {
             results.add(new Pair<>(true, pair));
           }
           return results;
-        } catch (TException | UnsupportedDataTypeException e) {
+        } catch (TException e) {
           logger.warn("Query last of {} from {} errored", group, seriesPaths, e);
           return Collections.emptyList();
         } catch (InterruptedException e) {

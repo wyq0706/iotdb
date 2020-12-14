@@ -52,13 +52,18 @@ public class CatchUpTask implements Runnable {
   private RaftMember raftMember;
   private Snapshot snapshot;
   private List<Log> logs;
+  private long lastLogIndex;
+  private boolean abort;
+  private String name;
 
-  public CatchUpTask(Node node, Peer peer, RaftMember raftMember) {
+  public CatchUpTask(Node node, Peer peer, RaftMember raftMember, long lastLogIdx) {
     this.node = node;
     this.peer = peer;
     this.raftMember = raftMember;
     this.logs = Collections.emptyList();
     this.snapshot = null;
+    this.lastLogIndex = lastLogIdx;
+    this.name = raftMember.getName() + "@" + System.currentTimeMillis();
   }
 
   /**
@@ -69,9 +74,10 @@ public class CatchUpTask implements Runnable {
    */
   private boolean checkMatchIndex()
       throws TException, InterruptedException, LeaderUnknownException {
+
+    logger.debug("Checking the match index of {}", node);
     long lo = 0;
     long hi = 0;
-    logger.debug("Checking the match index of {}", node);
     long localFirstIndex = 0;
     try {
       // to avoid snapshot catch up when index is volatile
@@ -83,9 +89,6 @@ public class CatchUpTask implements Runnable {
       }
       // this may result from peer's match index being changed concurrently, making the peer
       // actually catch up now
-      if (logs.isEmpty()) {
-        return true;
-      }
       if (logger.isInfoEnabled()) {
         logger.info(
             "{}: use {} logs of [{}, {}] to fix log inconsistency with node [{}], "
@@ -98,6 +101,10 @@ public class CatchUpTask implements Runnable {
       logger.error("Unexpected error in logManager's getEntries during matchIndexCheck", e);
     }
 
+    if (logs.isEmpty()) {
+      return true;
+    }
+
     int index = findLastMatchIndex(logs);
     if (index == -1) {
       logger.info("Cannot find matched of {} within [{}, {}] in memory", node, lo, hi);
@@ -108,7 +115,7 @@ public class CatchUpTask implements Runnable {
         if (!logsInDisk.isEmpty()) {
           logger.info(
               "{}, found {} logs in disk to catch up {} , startIndex={}, endIndex={}, memoryFirstIndex={}, getFirstLogIndex={}",
-              raftMember.getName(), logsInDisk.size(), node, startIndex, endIndex, localFirstIndex,
+              name, logsInDisk.size(), node, startIndex, endIndex, localFirstIndex,
               logsInDisk.get(0).getCurrLogIndex());
           logs = logsInDisk;
           return true;
@@ -116,20 +123,25 @@ public class CatchUpTask implements Runnable {
       }
       return false;
     }
-
-    if (logger.isInfoEnabled()) {
-      logger.info("{}: {} matches at {}", raftMember.getName(), node,
-          logs.get(index).getCurrLogIndex() - 1);
+    long newMatchedIndex = logs.get(index).getCurrLogIndex() - 1;
+    if (newMatchedIndex > lastLogIndex) {
+      logger.info("{}: matched index of {} has moved beyond last log index, node is "
+          + "self-catching-up, abort this catch up to avoid duplicates", name,
+          node);
+      abort = true;
+      return true;
     }
+    logger.info("{}: {} matches at {}", name, node,
+        newMatchedIndex);
 
-    peer.setMatchIndex(logs.get(index).getCurrLogIndex() - 1);
+    peer.setMatchIndex(newMatchedIndex);
     // if follower return RESPONSE.AGREE with this empty log, then start sending real logs from index.
     logs.subList(0, index).clear();
     if (logger.isInfoEnabled()) {
       if (logs.isEmpty()) {
-        logger.info("{}: {} has caught up by previous catch up", raftMember.getName(), node);
+        logger.info("{}: {} has caught up by previous catch up", name, node);
       } else {
-        logger.info("{}: makes {} catch up with {} and other {} logs", raftMember.getName(),
+        logger.info("{}: makes {} catch up with {} and other {} logs", name,
             node, logs.get(0), logs.size());
       }
     }
@@ -233,6 +245,9 @@ public class CatchUpTask implements Runnable {
       matched = SyncClientAdaptor.matchTerm(client, node, logIndex, logTerm, header);
     } else {
       Client client = raftMember.getSyncClient(node);
+      if (client == null) {
+        return false;
+      }
       try {
         matched = client.matchTerm(logIndex, logTerm, raftMember.getHeader());
       } catch (TException e) {
@@ -295,6 +310,11 @@ public class CatchUpTask implements Runnable {
   public void run() {
     try {
       boolean findMatchedIndex = checkMatchIndex();
+      if (abort) {
+        peer.resetInconsistentHeartbeatNum();
+        raftMember.getLastCatchUpResponseTime().remove(node);
+        return;
+      }
       boolean catchUpSucceeded;
       if (!findMatchedIndex) {
         logger.info("{}: performing a snapshot catch-up to {}", raftMember.getName(), node);
@@ -320,7 +340,6 @@ public class CatchUpTask implements Runnable {
           logger.info("{}: Catch up {} finished, update it's matchIndex to {}",
               raftMember.getName(), node, peer.getMatchIndex());
         }
-        peer.setCatchUp(true);
         peer.resetInconsistentHeartbeatNum();
       }
 

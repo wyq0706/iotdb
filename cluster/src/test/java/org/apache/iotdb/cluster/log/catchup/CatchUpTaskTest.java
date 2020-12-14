@@ -217,7 +217,7 @@ public class CatchUpTaskTest {
     sender.setCharacter(NodeCharacter.LEADER);
     Peer peer = new Peer(10);
     peer.setMatchIndex(9);
-    CatchUpTask task = new CatchUpTask(receiver, peer, sender);
+    CatchUpTask task = new CatchUpTask(receiver, peer, sender, 9);
     task.run();
 
     assertTrue(receivedLogs.isEmpty());
@@ -241,9 +241,8 @@ public class CatchUpTaskTest {
     Node receiver = new Node();
     sender.setCharacter(NodeCharacter.LEADER);
     Peer peer = new Peer(10);
-    peer.setCatchUp(false);
     peer.setMatchIndex(0);
-    CatchUpTask task = new CatchUpTask(receiver, peer, sender);
+    CatchUpTask task = new CatchUpTask(receiver, peer, sender, 5);
     task.run();
 
     assertEquals(logList, receivedLogs.subList(1, receivedLogs.size()));
@@ -273,9 +272,8 @@ public class CatchUpTaskTest {
       Node receiver = new Node();
       sender.setCharacter(NodeCharacter.LEADER);
       Peer peer = new Peer(10);
-      peer.setCatchUp(false);
       peer.setMatchIndex(0);
-      CatchUpTask task = new CatchUpTask(receiver, peer, sender);
+      CatchUpTask task = new CatchUpTask(receiver, peer, sender, 5);
       task.run();
 
       assertEquals(logList, receivedLogs.subList(1, receivedLogs.size()));
@@ -300,9 +298,8 @@ public class CatchUpTaskTest {
     Node receiver = new Node();
     sender.setCharacter(NodeCharacter.LEADER);
     Peer peer = new Peer(10);
-    peer.setCatchUp(false);
     peer.setNextIndex(0);
-    CatchUpTask task = new CatchUpTask(receiver, peer, sender);
+    CatchUpTask task = new CatchUpTask(receiver, peer, sender, 0);
     ClusterDescriptor.getInstance().getConfig().setUseBatchInLogCatchUp(false);
     task.run();
 
@@ -325,9 +322,8 @@ public class CatchUpTaskTest {
     Node receiver = new Node();
     sender.setCharacter(NodeCharacter.LEADER);
     Peer peer = new Peer(10);
-    peer.setCatchUp(false);
     peer.setNextIndex(0);
-    CatchUpTask task = new CatchUpTask(receiver, peer, sender);
+    CatchUpTask task = new CatchUpTask(receiver, peer, sender, 0);
     task.run();
 
     assertEquals(logList, receivedLogs.subList(1, receivedLogs.size()));
@@ -355,11 +351,10 @@ public class CatchUpTaskTest {
     Node receiver = new Node();
     sender.setCharacter(NodeCharacter.LEADER);
     Peer peer = new Peer(10);
-    peer.setCatchUp(false);
     peer.setMatchIndex(0);
     peer.setNextIndex(0);
 
-    CatchUpTask task = new CatchUpTask(receiver, peer, sender);
+    CatchUpTask task = new CatchUpTask(receiver, peer, sender, 0);
     task.setLogs(logList);
     try {
       // 1. case 1: the matched index is in the middle of the logs interval

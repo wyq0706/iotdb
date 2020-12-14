@@ -97,7 +97,7 @@ public class HeartbeatThread implements Runnable {
               }else{
                 logger.info("{}: The member {} is still a learner", memberName, memberName);
               }
-              localMember.setLeader(null);
+              localMember.setLeader(ClusterConstant.EMPTY_NODE);
             } else {
               logger.debug("{}: Heartbeat from leader {} is still valid", memberName,
                   localMember.getLeader());

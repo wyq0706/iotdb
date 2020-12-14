@@ -39,7 +39,7 @@ public class PartialPath extends Path implements Comparable<Path> {
   private static final Logger logger = LoggerFactory.getLogger(PartialPath.class);
 
   private String[] nodes;
-  // alias of measurement
+  // alias of measurement, null pointer cannot be serialized in thrift so empty string is instead
   private String measurementAlias = "";
   // alias of time series used in SELECT AS
   private String tsAlias = "";
@@ -185,6 +185,10 @@ public class PartialPath extends Path implements Comparable<Path> {
       }
     }
     return true;
+  }
+
+  public boolean equals(String obj) {
+    return this.getFullPath().equals(obj);
   }
 
   @Override

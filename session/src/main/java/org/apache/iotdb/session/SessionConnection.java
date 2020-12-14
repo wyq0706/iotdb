@@ -23,6 +23,7 @@ import java.time.ZoneId;
 import java.util.List;
 import org.apache.iotdb.rpc.IoTDBConnectionException;
 import org.apache.iotdb.rpc.RedirectException;
+import org.apache.iotdb.rpc.RpcTransportFactory;
 import org.apache.iotdb.rpc.RpcUtils;
 import org.apache.iotdb.rpc.StatementExecutionException;
 import org.apache.iotdb.service.rpc.thrift.EndPoint;
@@ -47,7 +48,6 @@ import org.apache.iotdb.service.rpc.thrift.TSStatus;
 import org.apache.thrift.TException;
 import org.apache.thrift.protocol.TBinaryProtocol;
 import org.apache.thrift.protocol.TCompactProtocol;
-import org.apache.thrift.transport.TFastFramedTransport;
 import org.apache.thrift.transport.TSocket;
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
@@ -66,7 +66,8 @@ public class SessionConnection {
   private ZoneId zoneId;
   private EndPoint endPoint;
 
-  public SessionConnection(Session session, EndPoint endPoint, ZoneId zoneId) throws IoTDBConnectionException {
+  public SessionConnection(Session session, EndPoint endPoint, ZoneId zoneId)
+      throws IoTDBConnectionException {
     this.session = session;
     this.endPoint = endPoint;
     this.zoneId = zoneId == null ? ZoneId.systemDefault() : zoneId;
@@ -74,7 +75,7 @@ public class SessionConnection {
   }
 
   private void init(EndPoint endPoint) throws IoTDBConnectionException {
-    transport = new TFastFramedTransport(
+    transport = RpcTransportFactory.INSTANCE.getTransport(
         new TSocket(endPoint.getIp(), endPoint.getPort(), session.connectionTimeoutInMs));
 
     try {
@@ -434,7 +435,7 @@ public class SessionConnection {
       throws IoTDBConnectionException, StatementExecutionException, RedirectException {
     request.setSessionId(sessionId);
     try {
-      RpcUtils.verifySuccessWithRedirection(client.insertTablets(request));
+      RpcUtils.verifySuccessWithRedirectionForInsertTablets(client.insertTablets(request), request);
     } catch (TException e) {
       if (reconnect()) {
         try {

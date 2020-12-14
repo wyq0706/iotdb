@@ -19,12 +19,12 @@
 package org.apache.iotdb.cluster.server.handlers.caller;
 
 import static org.apache.iotdb.cluster.server.Response.RESPONSE_AGREE;
-import static org.apache.iotdb.cluster.server.Response.RESPONSE_LOG_MISMATCH;
 
 import java.net.ConnectException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.iotdb.cluster.config.ClusterDescriptor;
 import org.apache.iotdb.cluster.log.Log;
 import org.apache.iotdb.cluster.rpc.thrift.Node;
 import org.apache.iotdb.cluster.server.Peer;
@@ -57,11 +57,12 @@ public class AppendNodeEntryHandler implements AsyncMethodCallback<Long> {
   private int failedDecreasingCounter;
 
   // nano start time when the send begins
-  private long sendStart;
+  private long sendStart = Long.MIN_VALUE;
 
 
   public AppendNodeEntryHandler() {
-    if (Timer.ENABLE_INSTRUMENTING) {
+    if (Timer.ENABLE_INSTRUMENTING && ClusterDescriptor.getInstance().getConfig()
+        .isUseAsyncServer()) {
       sendStart = System.nanoTime();
     }
   }
@@ -69,7 +70,11 @@ public class AppendNodeEntryHandler implements AsyncMethodCallback<Long> {
   @Override
   public void onComplete(Long response) {
     if (Timer.ENABLE_INSTRUMENTING) {
-      Statistic.RAFT_SENDER_SEND_LOG.calOperationCostTimeFromStart(sendStart);
+      Statistic.RAFT_SENDER_SEND_LOG_ASYNC.calOperationCostTimeFromStart(sendStart);
+    }
+    if (voteCounter.get() == Integer.MAX_VALUE) {
+      // the request already failed
+      return;
     }
     logger.debug("{}: Append response {} from {}", member.getName(), response, receiver);
     if (leaderShipStale.get()) {
@@ -104,9 +109,6 @@ public class AppendNodeEntryHandler implements AsyncMethodCallback<Long> {
         //e.g., Response.RESPONSE_LOG_MISMATCH
         logger.debug("{}: The log {} is rejected by {} because: {}", member.getName(), log,
             receiver, resp);
-        if (resp == RESPONSE_LOG_MISMATCH) {
-          setPeerNotCatchUp();
-        }
         onFail();
       }
       // rejected because the receiver's logs are stale or the receiver has no cluster info, just
@@ -116,7 +118,6 @@ public class AppendNodeEntryHandler implements AsyncMethodCallback<Long> {
 
   @Override
   public void onError(Exception exception) {
-    setPeerNotCatchUp();
     if (exception instanceof ConnectException) {
       logger
           .warn("{}: Cannot append log {}: cannot connect to {}: {}", member.getName(), log,
@@ -132,6 +133,7 @@ public class AppendNodeEntryHandler implements AsyncMethodCallback<Long> {
       failedDecreasingCounter--;
       if (failedDecreasingCounter <= 0) {
         // quorum members have failed, there is no need to wait for others
+        voteCounter.set(Integer.MAX_VALUE);
         voteCounter.notifyAll();
       }
     }
@@ -147,7 +149,8 @@ public class AppendNodeEntryHandler implements AsyncMethodCallback<Long> {
 
   public void setVoteCounter(AtomicInteger voteCounter) {
     this.voteCounter = voteCounter;
-    this.failedDecreasingCounter = voteCounter.get();
+    this.failedDecreasingCounter =
+        ClusterDescriptor.getInstance().getConfig().getReplicationNum() - voteCounter.get();
   }
 
   public void setLeaderShipStale(AtomicBoolean leaderShipStale) {
@@ -156,10 +159,6 @@ public class AppendNodeEntryHandler implements AsyncMethodCallback<Long> {
 
   public void setPeer(Peer peer) {
     this.peer = peer;
-  }
-
-  private void setPeerNotCatchUp() {
-    peer.setCatchUp(false);
   }
 
   public void setReceiver(Node follower) {

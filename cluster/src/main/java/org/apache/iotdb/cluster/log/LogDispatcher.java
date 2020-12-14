@@ -234,7 +234,7 @@ public class LogDispatcher {
             logger.debug("Sending {} logs to {}", currBatch.size(), receiver);
           }
           for (SendLogRequest request : currBatch) {
-            request.getAppendEntryRequest().setEntry(request.serializedLogFuture.get());
+            request.getAppendEntryRequest().entry = request.serializedLogFuture.get();
           }
           sendBatchLogs(currBatch);
           currBatch.clear();
@@ -273,6 +273,10 @@ public class LogDispatcher {
       Timer.Statistic.RAFT_SENDER_WAIT_FOR_PREV_LOG.calOperationCostTimeFromStart(startTime);
 
       Client client = member.getSyncClient(receiver);
+      if (client == null) {
+        logger.error("No available client for {}", receiver);
+        return;
+      }
       AsyncMethodCallback<Long> handler = new AppendEntriesHandler(currBatch);
       startTime = Timer.Statistic.RAFT_SENDER_SEND_LOG.getOperationStartTime();
       try {

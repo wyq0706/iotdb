@@ -23,6 +23,7 @@ package org.apache.iotdb.cluster.server;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.iotdb.cluster.config.ClusterDescriptor;
 import org.apache.iotdb.cluster.server.member.RaftMember;
 
 public class Timer {
@@ -86,6 +87,13 @@ public class Timer {
     RAFT_SENDER_WAIT_FOR_PREV_LOG(
         RAFT_MEMBER_SENDER, "sender wait for prev log", TIME_SCALE, true,
         RAFT_SENDER_SEND_LOG_TO_FOLLOWERS),
+    RAFT_SENDER_SERIALIZE_LOG(
+        RAFT_MEMBER_SENDER, "serialize logs", TIME_SCALE, true,
+        RAFT_SENDER_SEND_LOG_TO_FOLLOWERS),
+    RAFT_SENDER_SEND_LOG_ASYNC(
+        RAFT_MEMBER_SENDER, "send log async", TIME_SCALE,
+        ClusterDescriptor.getInstance().getConfig().isUseAsyncServer(),
+        RAFT_SENDER_SEND_LOG_TO_FOLLOWERS),
     RAFT_SENDER_SEND_LOG(
         RAFT_MEMBER_SENDER, "send log", TIME_SCALE, true, RAFT_SENDER_SEND_LOG_TO_FOLLOWERS),
     RAFT_SENDER_VOTE_COUNTER(
@@ -93,54 +101,52 @@ public class Timer {
         RaftMember.USE_LOG_DISPATCHER ? DATA_GROUP_MEMBER_LOCAL_EXECUTION
             : RAFT_SENDER_SEND_LOG_TO_FOLLOWERS),
     RAFT_SENDER_COMMIT_LOG(
-        RAFT_MEMBER_SENDER, "locally commit log", TIME_SCALE, !RaftMember.USE_LOG_DISPATCHER,
+        RAFT_MEMBER_SENDER, "locally commit log", TIME_SCALE, true,
         DATA_GROUP_MEMBER_LOCAL_EXECUTION),
-    RAFT_SENDER_COMMIT_LOG_V2(
-        RAFT_MEMBER_SENDER, "locally commit log(using dispatcher)", TIME_SCALE,
-        RaftMember.USE_LOG_DISPATCHER, DATA_GROUP_MEMBER_LOCAL_EXECUTION),
-    RAFT_SENDER_COMPETE_LOG_MANAGER_BEFORE_COMMIT_V2(
+    RAFT_SENDER_COMPETE_LOG_MANAGER_BEFORE_COMMIT(
         RAFT_MEMBER_SENDER, "compete for log manager before commit", TIME_SCALE,
-        RaftMember.USE_LOG_DISPATCHER, RAFT_SENDER_COMMIT_LOG_V2),
-    RAFT_SENDER_COMMIT_LOG_IN_MANAGER_V2(
+        true, RAFT_SENDER_COMMIT_LOG),
+    RAFT_SENDER_COMMIT_LOG_IN_MANAGER(
         RAFT_MEMBER_SENDER, "commit log in log manager", TIME_SCALE,
-        RaftMember.USE_LOG_DISPATCHER, RAFT_SENDER_COMMIT_LOG_V2),
+        RaftMember.USE_LOG_DISPATCHER, RAFT_SENDER_COMMIT_LOG),
     RAFT_SENDER_COMMIT_GET_LOGS(
         RAFT_MEMBER_SENDER, "get logs to be committed", TIME_SCALE,
-        RaftMember.USE_LOG_DISPATCHER, RAFT_SENDER_COMMIT_LOG_IN_MANAGER_V2),
+        RaftMember.USE_LOG_DISPATCHER, RAFT_SENDER_COMMIT_LOG_IN_MANAGER),
     RAFT_SENDER_COMMIT_DELETE_EXCEEDING_LOGS(
         RAFT_MEMBER_SENDER, "delete logs exceeding capacity", TIME_SCALE,
-        RaftMember.USE_LOG_DISPATCHER, RAFT_SENDER_COMMIT_LOG_IN_MANAGER_V2),
+        RaftMember.USE_LOG_DISPATCHER, RAFT_SENDER_COMMIT_LOG_IN_MANAGER),
     RAFT_SENDER_COMMIT_APPEND_AND_STABLE_LOGS(
         RAFT_MEMBER_SENDER, "append and stable committed logs", TIME_SCALE,
-        RaftMember.USE_LOG_DISPATCHER, RAFT_SENDER_COMMIT_LOG_IN_MANAGER_V2),
+        RaftMember.USE_LOG_DISPATCHER, RAFT_SENDER_COMMIT_LOG_IN_MANAGER),
     RAFT_SENDER_COMMIT_APPLY_LOGS(
         RAFT_MEMBER_SENDER, "apply after committing logs", TIME_SCALE,
-        RaftMember.USE_LOG_DISPATCHER, RAFT_SENDER_COMMIT_LOG_IN_MANAGER_V2),
+        RaftMember.USE_LOG_DISPATCHER, RAFT_SENDER_COMMIT_LOG_IN_MANAGER),
     RAFT_SENDER_COMMIT_TO_CONSUMER_LOGS(
         RAFT_MEMBER_SENDER, "provide log to consumer", TIME_SCALE,
         RaftMember.USE_LOG_DISPATCHER, RAFT_SENDER_COMMIT_APPLY_LOGS),
     RAFT_SENDER_COMMIT_EXCLUSIVE_LOGS(
         RAFT_MEMBER_SENDER, "apply logs that cannot run in parallel", TIME_SCALE,
         RaftMember.USE_LOG_DISPATCHER, RAFT_SENDER_COMMIT_APPLY_LOGS),
-    RAFT_SENDER_COMMIT_WAIT_LOG_APPLY_V2(
+    RAFT_SENDER_COMMIT_WAIT_LOG_APPLY(
         RAFT_MEMBER_SENDER, "wait until log is applied", TIME_SCALE,
-        RaftMember.USE_LOG_DISPATCHER, RAFT_SENDER_COMMIT_LOG_V2),
+        true, RAFT_SENDER_COMMIT_LOG),
     RAFT_SENDER_IN_APPLY_QUEUE(
         RAFT_MEMBER_SENDER, "in apply queue", TIME_SCALE, true,
-        RAFT_SENDER_COMMIT_WAIT_LOG_APPLY_V2),
+        RAFT_SENDER_COMMIT_WAIT_LOG_APPLY),
     RAFT_SENDER_DATA_LOG_APPLY(
         RAFT_MEMBER_SENDER, "apply data log", TIME_SCALE, true,
-        RAFT_SENDER_COMMIT_WAIT_LOG_APPLY_V2),
+        RAFT_SENDER_COMMIT_WAIT_LOG_APPLY),
     RAFT_SENDER_LOG_FROM_CREATE_TO_ACCEPT(
         RAFT_MEMBER_SENDER, "log from create to accept", TIME_SCALE,
         RaftMember.USE_LOG_DISPATCHER, DATA_GROUP_MEMBER_LOCAL_EXECUTION),
     // raft member - receiver
     RAFT_RECEIVER_LOG_PARSE(
-        RAFT_MEMBER_RECEIVER, "log parse", TIME_SCALE, true, RAFT_SENDER_SEND_LOG),
+        RAFT_MEMBER_RECEIVER, "log parse", TIME_SCALE, true, RAFT_SENDER_SEND_LOG_TO_FOLLOWERS),
     RAFT_RECEIVER_WAIT_FOR_PREV_LOG(
-        RAFT_MEMBER_RECEIVER, "receiver wait for prev log", TIME_SCALE, true, RAFT_SENDER_SEND_LOG),
+        RAFT_MEMBER_RECEIVER, "receiver wait for prev log", TIME_SCALE, true,
+        RAFT_SENDER_SEND_LOG_TO_FOLLOWERS),
     RAFT_RECEIVER_APPEND_ENTRY(
-        RAFT_MEMBER_RECEIVER, "append entrys", TIME_SCALE, true, RAFT_SENDER_SEND_LOG),
+        RAFT_MEMBER_RECEIVER, "append entrys", TIME_SCALE, true, RAFT_SENDER_SEND_LOG_TO_FOLLOWERS),
     RAFT_RECEIVER_INDEX_DIFF(
         RAFT_MEMBER_RECEIVER, "index diff", 1.0, true, ROOT),
     // log dispatcher
@@ -189,7 +195,7 @@ public class Timer {
       if (ENABLE_INSTRUMENTING) {
         return System.nanoTime();
       }
-      return 0;
+      return Long.MIN_VALUE;
     }
 
     /**
@@ -197,7 +203,7 @@ public class Timer {
      * method to avoid unnecessary calls when instrumenting is disabled.
      */
     public void calOperationCostTimeFromStart(long startTime) {
-      if (ENABLE_INSTRUMENTING) {
+      if (ENABLE_INSTRUMENTING && startTime != Long.MIN_VALUE) {
         add(System.nanoTime() - startTime);
       }
     }

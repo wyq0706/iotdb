@@ -128,7 +128,7 @@ public abstract class RaftLogManager {
     } catch (TruncateCommittedEntryException e) {
       logger.error("{}: Unexpected error:", name, e);
     }
-    long first = getCommittedEntryManager().getFirstIndex();
+    long first = getCommittedEntryManager().getDummyIndex();
     long last = getCommittedEntryManager().getLastIndex();
     this.setUnCommittedEntryManager(new UnCommittedEntryManager(last + 1));
 
@@ -161,10 +161,12 @@ public abstract class RaftLogManager {
     int logDeleteCheckIntervalSecond = ClusterDescriptor.getInstance().getConfig()
         .getLogDeleteCheckIntervalSecond();
 
-    this.deleteLogFuture = deleteLogExecutorService
-        .scheduleAtFixedRate(this::checkDeleteLog, logDeleteCheckIntervalSecond,
-            logDeleteCheckIntervalSecond,
-            TimeUnit.SECONDS);
+    if (logDeleteCheckIntervalSecond > 0) {
+      this.deleteLogFuture = deleteLogExecutorService
+          .scheduleAtFixedRate(this::checkDeleteLog, logDeleteCheckIntervalSecond,
+              logDeleteCheckIntervalSecond,
+              TimeUnit.SECONDS);
+    }
 
     this.checkLogApplierFuture = checkLogApplierExecutorService.submit(this::checkAppliedLogIndex);
 
@@ -293,7 +295,10 @@ public abstract class RaftLogManager {
     }
 
     if (index >= getUnCommittedEntryManager().getFirstUnCommittedIndex()) {
-      return getUnCommittedEntryManager().maybeTerm(index);
+      long term = getUnCommittedEntryManager().maybeTerm(index);
+      if (term != -1) {
+        return term;
+      }
     }
 
     // search in memory
@@ -593,7 +598,7 @@ public abstract class RaftLogManager {
       if (unappliedLogSize > ClusterDescriptor.getInstance().getConfig().getMaxNumOfLogsInMem()) {
         logger.debug("There are too many unapplied logs [{}], wait for a while to avoid memory "
             + "overflow", unappliedLogSize);
-        Thread.sleep(unappliedLogSize);
+        Thread.sleep(unappliedLogSize - ClusterDescriptor.getInstance().getConfig().getMaxNumOfLogsInMem());
       }
     } catch (TruncateCommittedEntryException e) {
       logger.error("{}: Unexpected error:", name, e);
@@ -728,7 +733,10 @@ public abstract class RaftLogManager {
     getStableEntryManager().close();
     if (deleteLogExecutorService != null) {
       deleteLogExecutorService.shutdownNow();
-      deleteLogFuture.cancel(true);
+      if (deleteLogFuture != null) {
+        deleteLogFuture.cancel(true);
+      }
+
       try {
         deleteLogExecutorService.awaitTermination(20, TimeUnit.SECONDS);
       } catch (InterruptedException e) {
@@ -803,6 +811,10 @@ public abstract class RaftLogManager {
 
   private void innerDeleteLog(int sizeToReserve) {
     long removeSize = committedEntryManager.getTotalSize() - sizeToReserve;
+    if (removeSize <= 0) {
+      return;
+    }
+
     long compactIndex = Math
         .min(committedEntryManager.getDummyIndex() + removeSize, maxHaveAppliedCommitIndex - 1);
     try {
