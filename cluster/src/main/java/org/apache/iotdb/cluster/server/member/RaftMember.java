@@ -637,7 +637,7 @@ public abstract class RaftMember {
       if (ClusterConstant.EMPTY_NODE.equals(leader) || leader == null) {
         logger.info("{} has been set to null in term {}", getName(), term.get());
       } else if (!Objects.equals(leader, this.thisNode)) {
-        logger.info("{} has become a follower of {} in term {}", getName(), leader, term.get());
+        logger.info("{} has become a {} of {} in term {}", getName(),character.name(), leader, term.get());
       }
       synchronized (waitLeaderCondition) {
         if (leader == null) {
@@ -1459,7 +1459,10 @@ public abstract class RaftMember {
       if (fromLeader) {
         // only when the request is from a leader should we update lastHeartbeatReceivedTime,
         // otherwise the node may be stuck in FOLLOWER state by a stale node.
-        setCharacter(NodeCharacter.FOLLOWER);
+        // [ADD RAFT LEARNER] should not change LEARNER status
+        if(character!=NodeCharacter.LEARNER) {
+          setCharacter(NodeCharacter.FOLLOWER);
+        }
         lastHeartbeatReceivedTime = System.currentTimeMillis();
       }
     }

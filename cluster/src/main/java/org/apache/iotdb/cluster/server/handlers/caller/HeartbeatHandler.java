@@ -120,6 +120,7 @@ public class HeartbeatHandler implements AsyncMethodCallback<HeartBeatResponse> 
       // [ADD RAFT LEARNER]
       try {
         if (localMember.getCharacter() == NodeCharacter.LEARNER) {
+          logger.info("{}: promote itself first", memberName);
           localMember.setCharacter(NodeCharacter.FOLLOWER);
           for (Node eachNode : localMember.getAllNodes()) {
             if (eachNode.equals(localMember.getThisNode())) {
