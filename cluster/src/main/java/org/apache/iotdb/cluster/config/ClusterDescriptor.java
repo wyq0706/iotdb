@@ -292,6 +292,9 @@ public class ClusterDescriptor {
         Boolean.parseBoolean(properties.getProperty("enable_use_persist_log_on_disk_to_catch_up",
             String.valueOf(config.isEnableUsePersistLogOnDiskToCatchUp()))));
 
+    config.setLearner(Boolean.parseBoolean(properties.getProperty("is_learner",
+            String.valueOf(config.isLearner()))));
+
     String consistencyLevel = properties.getProperty("consistency_level");
     if (consistencyLevel != null) {
       config.setConsistencyLevel(ConsistencyLevel.getConsistencyLevel(consistencyLevel));
