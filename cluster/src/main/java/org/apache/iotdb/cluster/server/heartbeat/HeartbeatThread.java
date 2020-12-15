@@ -19,7 +19,9 @@
 
 package org.apache.iotdb.cluster.server.heartbeat;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -273,11 +275,18 @@ public class HeartbeatThread implements Runnable {
       localMember.setVoteFor(localMember.getThisNode());
       localMember.updateHardState(nextTerm, this.localMember.getVoteFor());
 
+      // [ADD RAFT LEARNER] split out those nodes that don't have right to vote
+      List<Node> electorNodeList = new ArrayList<>();
+      for(Node eachNode:localMember.getAllNodes()){
+        if(!eachNode.isLearner){
+          electorNodeList.add(eachNode);
+        }
+      }
       // the number of votes needed to become a leader,
       // quorumNum should be equal to localMember.getAllNodes().size() / 2 + 1,
       // but since it doesn’t need to vote for itself here, it directly decreases 1
-      // [add leaner type] split out those nodes that don't have right to vote
-      int quorumNum = localMember.getAllNodes().size() / 2-localMember.getLearnerNum().get();
+      // [ADD RAFT LEARNER] switch to elector nodes' size
+      int quorumNum = electorNodeList.size() / 2;
       logger.info("{}: Election {} starts, quorum: {}", memberName, nextTerm, quorumNum);
       // set to true when the election has a result (rejected or succeeded)
       AtomicBoolean electionTerminated = new AtomicBoolean(false);
@@ -298,7 +307,7 @@ public class HeartbeatThread implements Runnable {
         electionRequest.setLastLogIndex(localMember.getLogManager().getLastLogIndex());
       }
 
-      requestVote(localMember.getAllNodes(), electionRequest, nextTerm, quorum,
+      requestVote(electorNodeList, electionRequest, nextTerm, quorum,
           electionTerminated, electionValid, failingVoteCounter);
       // erase the log index so it can be updated in the next heartbeat
       electionRequest.unsetLastLogIndex();

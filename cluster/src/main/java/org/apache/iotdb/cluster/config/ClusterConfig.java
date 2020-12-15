@@ -63,6 +63,8 @@ public class ClusterConfig {
 
   private boolean useBatchInLogCatchUp = true;
 
+  private boolean isLearner=false;
+
   /**
    * max number of committed logs to be saved
    */
@@ -440,5 +442,13 @@ public class ClusterConfig {
 
   public void setWaitForSlowNode(boolean waitForSlowNode) {
     this.waitForSlowNode = waitForSlowNode;
+  }
+
+  public boolean isLearner() {
+    return isLearner;
+  }
+
+  public void setLearner(boolean learner) {
+    isLearner = learner;
   }
 }

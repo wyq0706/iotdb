@@ -438,6 +438,12 @@ public class MetaGroupMember extends RaftMember {
 
         // update local data members
         getDataClusterServer().addNode(newNode, result);
+      }else{
+        // [ADD RAFT LEARNER] promote node character from LEARNER to ELECTOR
+        learnerNum.decrementAndGet();
+        if(newNode.equals(thisNode)&&character==NodeCharacter.LEARNER){
+          character=NodeCharacter.FOLLOWER;
+        }
       }
     }
   }
@@ -838,7 +844,14 @@ public class MetaGroupMember extends RaftMember {
       return false;
     }
     if (allNodes.contains(node)) {
-      logger.debug("Node {} is already in the cluster", node);
+      logger.debug("Node {} is already in the cluster and will take it as a promotion", node);
+      // [ADD RAFT LEARNER] change learner status to elector
+      for(Node eachNode:allNodes){
+        if(eachNode.equals(node)){
+          eachNode.isLearner=false;
+          break;
+        }
+      }
       response.setRespNum((int) Response.RESPONSE_AGREE);
       synchronized (partitionTable) {
         response.setPartitionTableBytes(partitionTable.serialize());

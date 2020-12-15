@@ -114,6 +114,7 @@ struct Node {
   3: required int nodeIdentifier
   4: required int dataPort
   5: required int clientPort
+  6: optional bool isLearner
 }
 
 // leader -> follower

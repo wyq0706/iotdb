@@ -24,6 +24,7 @@ import static org.apache.iotdb.cluster.server.Response.RESPONSE_AGREE;
 import java.net.ConnectException;
 import org.apache.iotdb.cluster.rpc.thrift.HeartBeatResponse;
 import org.apache.iotdb.cluster.rpc.thrift.Node;
+import org.apache.iotdb.cluster.server.NodeCharacter;
 import org.apache.iotdb.cluster.server.Peer;
 import org.apache.iotdb.cluster.server.member.RaftMember;
 import org.apache.thrift.async.AsyncMethodCallback;
@@ -116,6 +117,21 @@ public class HeartbeatHandler implements AsyncMethodCallback<HeartBeatResponse> 
       // the follower is up-to-date
       peer.setMatchIndex(Math.max(peer.getMatchIndex(), lastLogIdx));
       peer.resetInconsistentHeartbeatNum();
+      // [ADD RAFT LEARNER]
+      try {
+        if (localMember.getCharacter() == NodeCharacter.LEARNER) {
+          localMember.setCharacter(NodeCharacter.FOLLOWER);
+          for (Node eachNode : localMember.getAllNodes()) {
+            if (eachNode.equals(localMember.getThisNode())) {
+              localMember.setThisNodePromotion(false);
+              break;
+            }
+          }
+          localMember.promoteLearner();
+        }
+      }catch(Exception e){
+        logger.error("{}: something wrong with promotion: {}", memberName, e.getMessage());
+      }
     }
     peer.setLastHeartBeatIndex(lastLogIdx);
   }

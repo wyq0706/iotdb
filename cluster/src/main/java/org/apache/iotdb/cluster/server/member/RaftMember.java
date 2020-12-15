@@ -45,14 +45,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.iotdb.cluster.client.async.AsyncClientPool;
+import org.apache.iotdb.cluster.client.async.AsyncMetaClient;
 import org.apache.iotdb.cluster.client.sync.SyncClientAdaptor;
 import org.apache.iotdb.cluster.client.sync.SyncClientPool;
+import org.apache.iotdb.cluster.client.sync.SyncMetaClient;
 import org.apache.iotdb.cluster.config.ClusterConfig;
 import org.apache.iotdb.cluster.config.ClusterConstant;
 import org.apache.iotdb.cluster.config.ClusterDescriptor;
-import org.apache.iotdb.cluster.exception.CheckConsistencyException;
-import org.apache.iotdb.cluster.exception.LogExecutionException;
-import org.apache.iotdb.cluster.exception.UnknownLogTypeException;
+import org.apache.iotdb.cluster.exception.*;
 import org.apache.iotdb.cluster.log.CommitLogCallback;
 import org.apache.iotdb.cluster.log.CommitLogTask;
 import org.apache.iotdb.cluster.log.HardState;
@@ -63,13 +63,7 @@ import org.apache.iotdb.cluster.log.LogParser;
 import org.apache.iotdb.cluster.log.catchup.CatchUpTask;
 import org.apache.iotdb.cluster.log.logtypes.PhysicalPlanLog;
 import org.apache.iotdb.cluster.log.manage.RaftLogManager;
-import org.apache.iotdb.cluster.rpc.thrift.AppendEntriesRequest;
-import org.apache.iotdb.cluster.rpc.thrift.AppendEntryRequest;
-import org.apache.iotdb.cluster.rpc.thrift.ElectionRequest;
-import org.apache.iotdb.cluster.rpc.thrift.ExecutNonQueryReq;
-import org.apache.iotdb.cluster.rpc.thrift.HeartBeatRequest;
-import org.apache.iotdb.cluster.rpc.thrift.HeartBeatResponse;
-import org.apache.iotdb.cluster.rpc.thrift.Node;
+import org.apache.iotdb.cluster.rpc.thrift.*;
 import org.apache.iotdb.cluster.rpc.thrift.RaftService.AsyncClient;
 import org.apache.iotdb.cluster.rpc.thrift.RaftService.Client;
 import org.apache.iotdb.cluster.server.NodeCharacter;
@@ -455,11 +449,6 @@ public abstract class RaftMember {
    */
   public long processElectionRequest(ElectionRequest electionRequest) {
     synchronized (term) {
-      // ADD RAFT LEARNER
-      if(character==NodeCharacter.LEARNER){
-        return Response.RESPONSE_NODE_IS_LEARNER;
-      }
-
       long currentTerm = term.get();
       long response = checkElectorTerm(currentTerm, electionRequest.getTerm(),
           electionRequest.getElector());
@@ -1484,6 +1473,10 @@ public abstract class RaftMember {
     this.thisNode = thisNode;
   }
 
+  public void setThisNodePromotion(boolean isLearner) {
+    this.thisNode.isLearner = isLearner;
+  }
+
   /**
    * @return the header of the data raft group or null if this is in a meta group.
    */
@@ -1877,7 +1870,79 @@ public abstract class RaftMember {
     OK, TIME_OUT, LEADERSHIP_STALE
   }
 
-  public AtomicInteger getLearnerNum() {
-    return learnerNum;
+  /**
+   * [ADD RAFT LEARNER] Here we still use ADD_NODE rpc to promote a learner.
+   *
+   * @return true if the node has successfully promoted, false otherwise.
+   */
+  public void promoteLearner() throws ConfigInconsistentException, StartUpCheckFailureException {
+    if (allNodes.size() == 1) {
+      logger.error("Seed nodes not provided, cannot join cluster");
+      throw new ConfigInconsistentException();
+    }
+
+    int retry = 5;
+    while (retry > 0) {
+      // randomly pick up a node to try
+      Node node = allNodes.get(random.nextInt(allNodes.size()));
+      if (node.equals(thisNode)) {
+        continue;
+      }
+      logger.info("start promoting the learner with the help of {}", node);
+      try {
+        if (joinClusterAgain(node, null)) {
+          logger.info("promote successfully to ELECTOR...");
+          return;
+        }
+        // wait 5s to start the next try
+        Thread.sleep(ClusterDescriptor.getInstance().getConfig().getJoinClusterTimeOutMs());
+      } catch (TException e) {
+        logger.warn("Cannot promote to ELECTOR {}, because:", node, e);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        logger.warn("Unexpected interruption when waiting to promote to ELECTOR", e);
+      }
+      // start the next try
+      retry--;
+    }
+    // all tries failed
+    logger.error("Cannot promote to ELECTOR after {} retries", 5);
+    throw new StartUpCheckFailureException();
+  }
+
+  private boolean joinClusterAgain(Node node, StartUpStatus startUpStatus)
+          throws TException, InterruptedException, ConfigInconsistentException {
+
+    AddNodeResponse resp;
+    if (ClusterDescriptor.getInstance().getConfig().isUseAsyncServer()) {
+      AsyncMetaClient client = (AsyncMetaClient) getAsyncClient(node);
+      if (client == null) {
+        return false;
+      }
+      resp = SyncClientAdaptor.addNode(client, thisNode, startUpStatus);
+    } else {
+      SyncMetaClient client = (SyncMetaClient) getSyncClient(node);
+      if (client == null) {
+        return false;
+      }
+      try {
+        resp = client.addNode(thisNode, startUpStatus);
+      } catch (TException e) {
+        client.getInputProtocol().getTransport().close();
+        throw e;
+      } finally {
+        ClientUtils.putBackSyncClient(client);
+      }
+    }
+
+    if (resp == null) {
+      logger.warn("Promote request timed out");
+    } else if (resp.getRespNum() == Response.RESPONSE_AGREE) {
+      logger.info("Node {} admitted this node Promotion into the cluster", node);
+      return true;
+    }else {
+      logger.warn("Joining the cluster is rejected by {} for response {}", node, resp.getRespNum());
+    }
+    return false;
   }
 }

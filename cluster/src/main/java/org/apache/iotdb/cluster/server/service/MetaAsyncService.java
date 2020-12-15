@@ -77,7 +77,7 @@ public class MetaAsyncService extends BaseAsyncService implements TSMetaService.
       return;
     }
 
-    if (member.getCharacter() == NodeCharacter.FOLLOWER && member.getLeader() != null) {
+    if ((member.getCharacter() == NodeCharacter.FOLLOWER || member.getCharacter() == NodeCharacter.LEARNER)&& member.getLeader() != null) {
       logger.info("Forward the join request of {} to leader {}", node, member.getLeader());
       if (forwardAddNode(node, startUpStatus, resultHandler)) {
         return;
