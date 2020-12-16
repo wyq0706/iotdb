@@ -142,10 +142,6 @@ public abstract class RaftMember {
    */
   protected List<Node> allNodes;
 
-  /**
-   * the number of nodes that don't have right to vote.
-   */
-  protected AtomicInteger learnerNum=new AtomicInteger(0);
   ClusterConfig config = ClusterDescriptor.getInstance().getConfig();
   /**
    * the name of the member, to distinguish several members in the logs.
