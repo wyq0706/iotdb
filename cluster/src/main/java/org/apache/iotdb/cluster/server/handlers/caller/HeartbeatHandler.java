@@ -117,22 +117,6 @@ public class HeartbeatHandler implements AsyncMethodCallback<HeartBeatResponse> 
       // the follower is up-to-date
       peer.setMatchIndex(Math.max(peer.getMatchIndex(), lastLogIdx));
       peer.resetInconsistentHeartbeatNum();
-      // [ADD RAFT LEARNER]
-      try {
-        if (localMember.getCharacter() == NodeCharacter.LEARNER) {
-          logger.info("{}: promote itself first", memberName);
-          localMember.setCharacter(NodeCharacter.FOLLOWER);
-          for (Node eachNode : localMember.getAllNodes()) {
-            if (eachNode.equals(localMember.getThisNode())) {
-              localMember.setThisNodePromotion(false);
-              break;
-            }
-          }
-          localMember.promoteLearner();
-        }
-      }catch(Exception e){
-        logger.error("{}: something wrong with promotion: {}", memberName, e.getMessage());
-      }
     }
     peer.setLastHeartBeatIndex(lastLogIdx);
   }

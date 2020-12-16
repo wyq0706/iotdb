@@ -426,10 +426,9 @@ public class MetaGroupMember extends RaftMember {
   public void applyAddNode(Node newNode) {
     synchronized (allNodes) {
       if (!allNodes.contains(newNode)) {
-        logger.debug("Adding a new node {} into {}", newNode, allNodes);
+        logger.debug("Adding a new node {} into {}:", newNode, allNodes);
         registerNodeIdentifier(newNode, newNode.getNodeIdentifier());
         allNodes.add(newNode);
-        learnerNum.incrementAndGet();
 
         // update the partition table
         NodeAdditionResult result = partitionTable.addNode(newNode);
@@ -438,12 +437,6 @@ public class MetaGroupMember extends RaftMember {
 
         // update local data members
         getDataClusterServer().addNode(newNode, result);
-      }else{
-        // [ADD RAFT LEARNER] promote node character from LEARNER to ELECTOR
-        learnerNum.decrementAndGet();
-        if(newNode.equals(thisNode)&&character==NodeCharacter.LEARNER){
-          character=NodeCharacter.FOLLOWER;
-        }
       }
     }
   }
@@ -508,6 +501,9 @@ public class MetaGroupMember extends RaftMember {
         continue;
       }
       logger.info("start joining the cluster with the help of {}", node);
+      if(nodeCharacter==NodeCharacter.LEARNER) {
+        setCharacter(nodeCharacter);
+      }
       try {
         if (joinCluster(node, startUpStatus)) {
           logger.info("Joined a cluster, starting the heartbeat thread");
@@ -586,7 +582,9 @@ public class MetaGroupMember extends RaftMember {
     } else if (resp.getRespNum() == Response.RESPONSE_AGREE) {
       logger.info("Node {} admitted this node into the cluster", node);
       ByteBuffer partitionTableBuffer = resp.partitionTableBytes;
+      logger.info("start accepting partition table");
       acceptPartitionTable(partitionTableBuffer, true);
+      logger.info("start pulling snapshots");
       getDataClusterServer().pullSnapshots();
       return true;
     } else if (resp.getRespNum() == Response.RESPONSE_IDENTIFIER_CONFLICT) {

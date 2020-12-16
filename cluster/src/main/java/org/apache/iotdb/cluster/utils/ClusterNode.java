@@ -66,6 +66,6 @@ public class ClusterNode extends Node {
         + ", nodeIdentifier=" + nodeIdentifier
         + ", dataPort=" + dataPort
         + ", clientPort=" + clientPort
-        + "}";
+        + ", isLearner="+ isLearner+"}";
   }
 }

@@ -79,6 +79,7 @@ public class HeartbeatThread implements Runnable {
     }
     while (!Thread.interrupted()) {
       try {
+        logger.info("{} is now {}", memberName,localMember.getCharacter());
         switch (localMember.getCharacter()) {
           case LEADER:
             // send heartbeats to the followers
@@ -280,6 +281,8 @@ public class HeartbeatThread implements Runnable {
       for(Node eachNode:localMember.getAllNodes()){
         if(!eachNode.isLearner){
           electorNodeList.add(eachNode);
+        }else{
+          logger.info("{} is learner", eachNode);
         }
       }
       // the number of votes needed to become a leader,

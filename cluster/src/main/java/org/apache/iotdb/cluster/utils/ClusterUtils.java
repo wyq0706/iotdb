@@ -276,13 +276,18 @@ public class ClusterUtils {
     int dataPortLastPos = str.indexOf(',', dataPortFirstPos);
     int clientPortFirstPos = str.indexOf("clientPort:", idLastPos) + "clientPort:".length();
     int clientPortLastPos = str.indexOf(')', clientPortFirstPos);
+    int learnerFirstPos = str.indexOf("isLearner:",idLastPos) + "clientPort:".length();
+    int learnerLastPos = str.indexOf(')',learnerFirstPos);
 
     String ip = str.substring(ipFirstPos, ipLastPos);
     int metaPort = Integer.parseInt(str.substring(metaPortFirstPos, metaPortLastPos));
     int id = Integer.parseInt(str.substring(idFirstPos, idLastPos));
     int dataPort = Integer.parseInt(str.substring(dataPortFirstPos, dataPortLastPos));
     int clientPort = Integer.parseInt(str.substring(clientPortFirstPos, clientPortLastPos));
-    return new Node(ip, metaPort, id, dataPort, clientPort);
+    boolean isLearner=Boolean.parseBoolean(str.substring(learnerFirstPos,learnerLastPos));
+    Node n=new Node(ip, metaPort, id, dataPort, clientPort);
+    n.setIsLearner(isLearner);
+    return n;
   }
 
   public static Node parseNode(String nodeUrl) {

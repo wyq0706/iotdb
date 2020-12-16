@@ -615,6 +615,10 @@ public abstract class RaftMember {
 
   public void setCharacter(NodeCharacter character) {
     if (!Objects.equals(character, this.character)) {
+      if(this.character==NodeCharacter.LEARNER){
+        logger.info("{} should not change since it is a learner", name);
+        return;
+      }
       logger.info("{} has become a {}", name, character);
       this.character = character;
     }
@@ -1462,6 +1466,8 @@ public abstract class RaftMember {
         // [ADD RAFT LEARNER] should not change LEARNER status
         if(character!=NodeCharacter.LEARNER) {
           setCharacter(NodeCharacter.FOLLOWER);
+        }else{
+          setCharacter(NodeCharacter.LEARNER);
         }
         lastHeartbeatReceivedTime = System.currentTimeMillis();
       }
@@ -1499,6 +1505,7 @@ public abstract class RaftMember {
   }
 
   public void setVoteFor(Node voteFor) {
+    logger.info("{} going to update it's voteFor to {}", getName(), voteFor);
     if (!Objects.equals(voteFor, this.voteFor)) {
       logger.info("{} has update it's voteFor to {}", getName(), voteFor);
       this.voteFor = voteFor;
