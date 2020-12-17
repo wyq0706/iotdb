@@ -275,7 +275,7 @@ public abstract class RaftMember {
     }
 
     startBackGroundThreads();
-    logger.info("{} started", name);
+    logger.info("{} started,character is {}", name,character);
   }
 
   void startBackGroundThreads() {
@@ -1109,7 +1109,10 @@ public abstract class RaftMember {
       logger.info("{} accepted an election request, term:{}/{}, logIndex:{}/{}, logTerm:{}/{}",
           name, thatTerm, term.get(), thatLastLogIndex, logManager.getLastLogIndex(),
           thatLastLogTerm, logManager.getLastLogTerm());
-      setCharacter(NodeCharacter.FOLLOWER);
+      // [ADD RAFT LEARNER] do not change LEARNER status
+      if(character!=NodeCharacter.LEARNER) {
+        setCharacter(NodeCharacter.FOLLOWER);
+      }
       lastHeartbeatReceivedTime = System.currentTimeMillis();
       setVoteFor(electionRequest.getElector());
       updateHardState(thatTerm, getVoteFor());
