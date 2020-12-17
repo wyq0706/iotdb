@@ -445,6 +445,9 @@ public abstract class RaftMember {
    */
   public long processElectionRequest(ElectionRequest electionRequest) {
     synchronized (term) {
+      if (character == NodeCharacter.LEARNER){
+        return Response.RESPONSE_IS_LEARNER;
+      }
       long currentTerm = term.get();
       long response = checkElectorTerm(currentTerm, electionRequest.getTerm(),
           electionRequest.getElector());
@@ -1110,9 +1113,7 @@ public abstract class RaftMember {
           name, thatTerm, term.get(), thatLastLogIndex, logManager.getLastLogIndex(),
           thatLastLogTerm, logManager.getLastLogTerm());
       // [ADD RAFT LEARNER] do not change LEARNER status
-      if(character!=NodeCharacter.LEARNER) {
-        setCharacter(NodeCharacter.FOLLOWER);
-      }
+      setCharacter(NodeCharacter.FOLLOWER);
       lastHeartbeatReceivedTime = System.currentTimeMillis();
       setVoteFor(electionRequest.getElector());
       updateHardState(thatTerm, getVoteFor());
